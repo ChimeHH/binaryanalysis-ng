@@ -26,6 +26,7 @@ import pathlib
 import sys
 import tarfile
 import time
+import ctypes
 
 from collections import deque
 
@@ -169,17 +170,17 @@ def scan(config_file, verbose, unpack_directory, temporary_directory, ignore_lis
 
     # set up the environment
     scan_environment = create_scan_environment_from_config(config)
-    scan_environment.job_wait_time = job_wait_time
     scan_environment.configuration.temporary_directory = temporary_directory.absolute()
     scan_environment.unpack_directory = unpack_directory.absolute()
     scan_environment.ignore = ignore
     scan_environment.tlsh_ignore = tlsh_ignore
+    scan_environment.job_wait_time = job_wait_time
+    scan_environment.scanjob_count = multiprocessing.Value(ctypes.c_int, 0)
 
-    if verbose:
-        log.setLevel(logging.DEBUG)
+    log.setLevel(debug_level)
 
     log.info(f'cli:scan: BANG version {BANG_VERSION}')
-    log.info(f'cli:scan: start [{time.time_ns()}]')
+    log.info(f'cli:scan: start [{time.ctime()}]')
 
     # set the unpack_parsers
     # TODO: use config to enable/disable parsers
@@ -195,21 +196,16 @@ def scan(config_file, verbose, unpack_directory, temporary_directory, ignore_lis
     scan_environment.parsers.build_automaton()
     scan_environment.signature_chunk_size = max(scan_environment.signature_chunk_size, scan_environment.parsers.max_chunk_size)
 
-    # set up the process manager and initialize the barrier
-    # with the value of the amount of jobs: this is the maximum
-    # amount of jobs that will be able to run concurrently.
-    process_manager = multiprocessing.Manager()
-    scan_environment.barrier = process_manager.Barrier(jobs)
-
     # create a queue
-    scan_queue = process_manager.Queue(maxsize=0)
+    scan_queue = multiprocessing.Queue(maxsize=0)
     scan_environment.scan_queue = scan_queue
 
     # create a scan pipeline for parsing and unpacking files
     scan_pipeline = make_scan_pipeline()
 
     # create $jobs processes
-    processes = [ multiprocessing.Process(target = process_jobs, args = (scan_pipeline, scan_environment,)) for i in range(jobs)]
+    timeouts = [multiprocessing.Value(ctypes.c_int, job_wait_time) for i in range(jobs)] # 10 minutes
+    processes = [ multiprocessing.Process(target = process_jobs, args = (scan_pipeline, scan_environment, timeouts[i])) for i in range(jobs) ]
 
     # first create a meta directory for the file
     md = MetaDirectory(scan_environment.unpack_directory, None, True)
@@ -223,21 +219,41 @@ def scan(config_file, verbose, unpack_directory, temporary_directory, ignore_lis
     scan_queue.put(j)
 
     # start processes
-    log.debug('cli:scan: starting processes...')
+    log.debug(f'cli:scan: starting processes...')
     for p in processes:
+        p.daemon = True
         p.start()
 
-    log.debug('cli:scan: waiting for all processes to finish...')
-    for p in processes:
-        p.join()
-    log.debug('cli:scan: all processes in queue finished')
+    log.debug(f'cli:scan: waiting for all processes to finish...')
 
-    log.debug('cli:scan: terminating processes...')
-    for p in processes:
-        p.terminate()
-    log.debug('cli:scan: done.')
+    while True:
+        time.sleep(1)
 
-    stop_time = datetime.datetime.now(datetime.UTC)
+        in_processing = 0
+        max_timeout = 0
+        for i, timeout in enumerate(timeouts):
+            if timeout.value > 0 and processes[i].is_alive():
+                with timeout.get_lock():
+                    timeout.value -= 1
+                max_timeout = max(max_timeout, timeout.value)
+                in_processing += 1
+
+        if in_processing:
+            log.info(f"cli:scan: {in_processing} processes are running, scanned files: {scan_environment.scanjob_count.value}, timeout={max_timeout} seconds")
+        else:
+            log.info(f"cli:scan: all processes done, scanned files: {scan_environment.scanjob_count.value}")
+            break
+
+    for i, p in enumerate(processes):
+        if not p.is_alive():
+            continue
+
+            p.kill()
+
+    log.info(f'cli:scan: done.')
+
+    stop_time = datetime.datetime.utcnow()
+    exit(0)
 
 
 @app.command(short_help='Show bang scan results')

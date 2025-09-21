@@ -350,15 +350,15 @@ class MetaDirectory:
         '''
         sanitized_source, is_absolute_source = self.sanitize_path(source)
         unpacked_path = self.unpacked_path(sanitized_source)
-        full_path = self._meta_root / unpacked_path
-        full_path.parent.mkdir(parents=True, exist_ok=True)
+        # full_path = self._meta_root / unpacked_path
+        # full_path.parent.mkdir(parents=True, exist_ok=True)
 
-        sanitized_target, is_absolute_target = self.sanitize_path(target)
-        target_path = self.unpacked_path(sanitized_target)
-        target_full_path = self._meta_root / target_path
-        full_path.hardlink_to(target_full_path)
-        self.info.setdefault('unpacked_hardlinks', {})[unpacked_path] = target
-        log.debug(f'[{self.md_path}]unpack_hardlink: update info to {self.info}')
+        # sanitized_target, is_absolute_target = self.sanitize_path(target)
+        # target_path = self.unpacked_path(sanitized_target)
+        # target_full_path = self._meta_root / target_path
+        # full_path.hardlink_to(target_full_path)
+        # self.info.setdefault('unpacked_hardlinks', {})[unpacked_path] = target
+        # log.debug(f'[{self.md_path}]unpack_hardlink: update info to {self.info}')
         return unpacked_path
 
     @property
@@ -372,11 +372,11 @@ class MetaDirectory:
         '''
         sanitized_source, is_absolute_source = self.sanitize_path(source)
         unpacked_path = self.unpacked_path(sanitized_source)
-        full_path = self._meta_root / unpacked_path
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        full_path.symlink_to(target)
-        self.info.setdefault('unpacked_symlinks', {})[unpacked_path] = target
-        log.debug(f'[{self.md_path}]unpack_symlink: update info to {self.info}')
+        # full_path = self._meta_root / unpacked_path
+        # full_path.parent.mkdir(parents=True, exist_ok=True)
+        # full_path.symlink_to(target)
+        # self.info.setdefault('unpacked_symlinks', {})[unpacked_path] = target
+        # log.debug(f'[{self.md_path}]unpack_symlink: update info to {self.info}')
         return unpacked_path
 
     @property

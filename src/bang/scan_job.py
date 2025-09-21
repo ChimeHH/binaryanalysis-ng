@@ -17,8 +17,10 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 
+import multiprocessing
 import os
 import queue
+import re
 import sys
 import threading
 import traceback
@@ -506,7 +508,6 @@ def pipe_exec(checking_iterator):
                     scan_environment.scan_queue.put(job)
 
                     # wake up all waiting threads as there is new data in the queue
-                    scan_environment.barrier.reset()
                     log.debug(f'pipe_exec({checking_iterator})[{meta_directory.md_path}]: queued job [{time.time_ns()}]')
                 log.debug(f'pipe_exec({checking_iterator})[{meta_directory.md_path}]: unpacked {md.file_path} into {md.md_path} with {md.unpack_parser.__class__} [{time.time_ns()}]')
         return True
@@ -636,7 +637,7 @@ def make_scan_pipeline():
 # The scanjob stores a MetaDirectory path that contains all information needed for
 # processing, such as the path of the file to analyze, and any context.
 #
-def process_jobs(pipeline, scan_environment):
+def process_jobs(pipeline, scan_environment, timeout):
     # TODO: code smell, should not be needed if unpackparsers behave
     current_dir = os.getcwd()
     os.chdir(scan_environment.unpack_directory)
@@ -646,43 +647,55 @@ def process_jobs(pipeline, scan_environment):
 
         try:
             # grab a job from the queue
-            scanjob = scan_environment.scan_queue.get(timeout=scan_environment.job_wait_time)
-            log.debug(f'process_jobs: {scanjob=}')
+            scanjob = scan_environment.scan_queue.get(timeout=1)
+            with scan_environment.scanjob_count.get_lock():
+                scan_environment.scanjob_count.value += 1
 
-            scanjob.scan_environment = scan_environment
-            log.debug(f'process_jobs[{scanjob.meta_directory.md_path}]: start job [{time.time_ns()}]')
+            # reset timeout always
+            with timeout.get_lock():
+                timeout.value = scan_environment.job_wait_time
 
-            # first compute some checksums here, so files that should be
-            # ignored actually can be ignored. Note: these are the checksums
-            # for the *entire* file, not for parts that have been unpacked and
-            # carved which are (to be) computed somewhere else.
-            with scanjob.meta_directory.open() as md:
-                hashes = compute_hashes(md.open_file)
-                metadata = {'hashes': hashes}
-                scanjob.meta_directory.info.setdefault('metadata', metadata)
-
-                if hashes['sha256'] in scan_environment.ignore:
-                    labels = ['ignored']
-                    scanjob.meta_directory.info.setdefault('labels', labels)
-                    continue
-
-            # start the pipeline for the job
-            pipeline(scanjob.scan_environment, scanjob.meta_directory)
-
-            log.debug(f'process_jobs[{scanjob.meta_directory.md_path}]: end job [{time.time_ns()}]')
-        except queue.Empty as e:
-            log.debug('process_jobs: scan queue is empty')
+            # catch exceptions here, then whatever, queue will be cleaned
             try:
-                # A thread will block here and wait until either *all*
-                # threads end up here (meaning the program is done)
-                # or wait for new data to arrive in the scanning queue.
-                scan_environment.barrier.wait()
-                log.debug('process_jobs: all scanjobs are waiting')
-                break
-            except threading.BrokenBarrierError:
-                # all waiting threads are woken up again here
-                # because there is new data in the scanning queue
+                log.debug(f'process_jobs: {scanjob=}')
+
+                scanjob.scan_environment = scan_environment
+                log.debug(f'process_jobs[{scanjob.meta_directory.md_path}]: start job [{time.time_ns()}]')
+
+                # first compute some checksums here, so files that should be
+                # ignored actually can be ignored. Note: these are the checksums
+                # for the *entire* file, not for parts that have been unpacked and
+                # carved which are (to be) computed somewhere else.
+                with scanjob.meta_directory.open() as md:
+                    hashes = compute_hashes(md.open_file)
+                    metadata = {'hashes': hashes}
+                    scanjob.meta_directory.info.setdefault('metadata', metadata)
+
+                    if hashes['sha256'] in scan_environment.ignore:
+                        labels = ['ignored']
+                        scanjob.meta_directory.info.setdefault('labels', labels)
+                        continue
+
+                # start the pipeline for the job
+                pipeline(scanjob.scan_environment, scanjob.meta_directory)
+
+                log.debug(f'process_jobs[{scanjob.meta_directory.md_path}]: end job [{time.time_ns()}]')
+            except Exception as e:
+                log.error(f'process_jobs: caught exception {e}')
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                exc_trace = traceback.format_exception(exc_type, exc_value, exc_traceback)
+                log.error(f'process_jobs:\n{"".join(exc_trace)}')
                 continue
+
+        except queue.Empty as e:
+            # no job to do, than tell the parant that
+            if timeout.value > 0:
+                with timeout.get_lock():
+                    timeout.value = 0
+
+            log.debug(f'process_jobs: scan queue is empty')
+            continue
+
         except Exception as e:
             log.error(f'process_jobs: caught exception {e}')
             exc_type, exc_value, exc_traceback = sys.exc_info()
