@@ -416,3 +416,8 @@ Another tool that is highly recommended is `pylint`.
 This project has received funding from the European Union’s Horizon 2020
 research and innovation programme within the framework of the NGI-POINTER
 Project funded under grant agreement No. 871528.
+
+# Chime Insighter Updates
+1. Replaced the original job scheduler with multiprocessing tasks, to avoid unexpected crashes;
+2. Removed pwn module, and replaced pwn.ELF with pwnlib.ELF, because pwn causes the job hang up, while running Bang with multiprocessing;
+3. Removed symbol links and hard links, to avoid loops and exceptions on ntfs partions.
