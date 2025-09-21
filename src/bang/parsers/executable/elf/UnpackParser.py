@@ -25,7 +25,6 @@ import json
 import pathlib
 
 import elftools
-import pwn
 import pwnlib
 import tlsh
 import telfhash
@@ -363,7 +362,7 @@ class ElfUnpackParser(UnpackParser):
             self.elf = None
             if self.infile.offset == 0:
                 if machine not in ['mips']:
-                    self.elf = pwn.ELF(self.infile.name, checksec=False)
+                    self.elf = pwnlib.ELF(self.infile.name, checksec=False)
 
         except (Exception, ValidationFailedError, UndecidedEndiannessError, elftools.common.exceptions.ELFError) as e:
             raise UnpackParserException(e.args) from e
