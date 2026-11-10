@@ -17,7 +17,7 @@ services:
         max-size: "10m"
         max-file: "3"
     environment:
-      PYTHONPATH: /usr/local/lib/python3.12/packages:/usr/local/lib/python3.12/other-packages 
+      PYTHONPATH: /usr/local/lib/python3.10/packages:/usr/local/lib/python3.10/other-packages 
       ENGINE_ID: 'bang.0'  
       LOG_LEVEL: 10
       BANG_VERBOSE: 0
@@ -26,8 +26,8 @@ services:
     volumes:
       - data:/data
       - appdata:/usr/local/share/appdata
-      - packages:/usr/local/lib/python3.12/packages
-      - bang:/usr/local/lib/python3.12/other-packages/bang
+      - packages:/usr/local/lib/python3.10/packages
+      - bang:/usr/local/lib/python3.10/other-packages/bang
     networks:
       - network
 
@@ -49,6 +49,8 @@ volumes:
       type: none  
       device: /share/digitaltwins-ng/appdata
       o: bind
+  packages:
+    driver: local
   bang:  
     driver: local  
     driver_opts:  

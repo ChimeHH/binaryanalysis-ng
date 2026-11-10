@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/images"
 OUTPUT_NAME=""
 IMAGES=()
-DEFAULT_IMAGES=(py:latest cpp:latest cs:latest web:latest flow:latest dev:latest)
+DEFAULT_IMAGES=(bang:latest)
 
 usage() {
   cat <<EOF
