@@ -10,3 +10,4 @@ src/test/testdata/download
 offline/
 
 util/kaitai_struct
+*.zip
