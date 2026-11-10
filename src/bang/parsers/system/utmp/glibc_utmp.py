@@ -1,0 +1,132 @@
+# This is a generated file! Please edit source .ksy file and use kaitai-struct-compiler to rebuild
+# type: ignore
+
+import kaitaistruct
+from kaitaistruct import KaitaiStruct, KaitaiStream, BytesIO
+from enum import IntEnum
+import collections
+
+
+if getattr(kaitaistruct, 'API_VERSION', (0, 9)) < (0, 11):
+    raise Exception("Incompatible Kaitai Struct Python API: 0.11 or later is required, but you have %s" % (kaitaistruct.__version__))
+
+class GlibcUtmp(KaitaiStruct):
+
+    class EntryType(IntEnum):
+        empty = 0
+        run_lvl = 1
+        boot_time = 2
+        new_time = 3
+        old_time = 4
+        init_process = 5
+        login_process = 6
+        user_process = 7
+        dead_process = 8
+        accounting = 9
+    SEQ_FIELDS = ["records"]
+    def __init__(self, _io, _parent=None, _root=None):
+        super(GlibcUtmp, self).__init__(_io)
+        self._parent = _parent
+        self._root = _root or self
+        self._debug = collections.defaultdict(dict)
+        self._read()
+
+    def _read(self):
+        self._debug['records']['start'] = self._io.pos()
+        self._debug['records']['arr'] = []
+        self._raw_records = []
+        self.records = []
+        i = 0
+        while not self._io.is_eof():
+            self._debug['records']['arr'].append({'start': self._io.pos()})
+            self._raw_records.append(self._io.read_bytes(384))
+            _io__raw_records = KaitaiStream(BytesIO(self._raw_records[-1]))
+            self.records.append(GlibcUtmp.Record(_io__raw_records, self, self._root))
+            self._debug['records']['arr'][len(self.records) - 1]['end'] = self._io.pos()
+            i += 1
+
+        self._debug['records']['end'] = self._io.pos()
+
+
+    def _fetch_instances(self):
+        pass
+        for i in range(len(self.records)):
+            pass
+            self.records[i]._fetch_instances()
+
+
+    class Record(KaitaiStruct):
+        SEQ_FIELDS = ["ut_type", "pid", "line", "id", "user", "host", "exit", "session", "tv", "addr_v6", "reserved"]
+        def __init__(self, _io, _parent=None, _root=None):
+            super(GlibcUtmp.Record, self).__init__(_io)
+            self._parent = _parent
+            self._root = _root
+            self._debug = collections.defaultdict(dict)
+            self._read()
+
+        def _read(self):
+            self._debug['ut_type']['start'] = self._io.pos()
+            self.ut_type = KaitaiStream.resolve_enum(GlibcUtmp.EntryType, self._io.read_s4le())
+            self._debug['ut_type']['end'] = self._io.pos()
+            if not  ((self.ut_type == GlibcUtmp.EntryType.empty) or (self.ut_type == GlibcUtmp.EntryType.run_lvl) or (self.ut_type == GlibcUtmp.EntryType.boot_time) or (self.ut_type == GlibcUtmp.EntryType.new_time) or (self.ut_type == GlibcUtmp.EntryType.old_time) or (self.ut_type == GlibcUtmp.EntryType.init_process) or (self.ut_type == GlibcUtmp.EntryType.login_process) or (self.ut_type == GlibcUtmp.EntryType.user_process) or (self.ut_type == GlibcUtmp.EntryType.dead_process) or (self.ut_type == GlibcUtmp.EntryType.accounting)) :
+                raise kaitaistruct.ValidationNotAnyOfError(self.ut_type, self._io, u"/types/record/seq/0")
+            self._debug['pid']['start'] = self._io.pos()
+            self.pid = self._io.read_u4le()
+            self._debug['pid']['end'] = self._io.pos()
+            self._debug['line']['start'] = self._io.pos()
+            self.line = (self._io.read_bytes(32)).decode(u"UTF-8")
+            self._debug['line']['end'] = self._io.pos()
+            self._debug['id']['start'] = self._io.pos()
+            self.id = (self._io.read_bytes(4)).decode(u"UTF-8")
+            self._debug['id']['end'] = self._io.pos()
+            self._debug['user']['start'] = self._io.pos()
+            self.user = (self._io.read_bytes(32)).decode(u"UTF-8")
+            self._debug['user']['end'] = self._io.pos()
+            self._debug['host']['start'] = self._io.pos()
+            self.host = (self._io.read_bytes(256)).decode(u"UTF-8")
+            self._debug['host']['end'] = self._io.pos()
+            self._debug['exit']['start'] = self._io.pos()
+            self.exit = self._io.read_u4le()
+            self._debug['exit']['end'] = self._io.pos()
+            self._debug['session']['start'] = self._io.pos()
+            self.session = self._io.read_s4le()
+            self._debug['session']['end'] = self._io.pos()
+            self._debug['tv']['start'] = self._io.pos()
+            self.tv = GlibcUtmp.Timeval(self._io, self, self._root)
+            self._debug['tv']['end'] = self._io.pos()
+            self._debug['addr_v6']['start'] = self._io.pos()
+            self.addr_v6 = self._io.read_bytes(16)
+            self._debug['addr_v6']['end'] = self._io.pos()
+            self._debug['reserved']['start'] = self._io.pos()
+            self.reserved = self._io.read_bytes(20)
+            self._debug['reserved']['end'] = self._io.pos()
+
+
+        def _fetch_instances(self):
+            pass
+            self.tv._fetch_instances()
+
+
+    class Timeval(KaitaiStruct):
+        SEQ_FIELDS = ["sec", "usec"]
+        def __init__(self, _io, _parent=None, _root=None):
+            super(GlibcUtmp.Timeval, self).__init__(_io)
+            self._parent = _parent
+            self._root = _root
+            self._debug = collections.defaultdict(dict)
+            self._read()
+
+        def _read(self):
+            self._debug['sec']['start'] = self._io.pos()
+            self.sec = self._io.read_s4le()
+            self._debug['sec']['end'] = self._io.pos()
+            self._debug['usec']['start'] = self._io.pos()
+            self.usec = self._io.read_s4le()
+            self._debug['usec']['end'] = self._io.pos()
+
+
+        def _fetch_instances(self):
+            pass
+
+
+

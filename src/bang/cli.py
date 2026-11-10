@@ -177,6 +177,7 @@ def scan(config_file, verbose, unpack_directory, temporary_directory, ignore_lis
     scan_environment.job_wait_time = job_wait_time
     scan_environment.scanjob_count = multiprocessing.Value(ctypes.c_int, 0)
 
+    debug_level = logging.DEBUG if verbose else logging.INFO
     log.setLevel(debug_level)
 
     log.info(f'cli:scan: BANG version {BANG_VERSION}')
