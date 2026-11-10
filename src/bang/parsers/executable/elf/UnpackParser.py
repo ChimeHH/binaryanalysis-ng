@@ -25,6 +25,7 @@ import json
 import pathlib
 
 import elftools
+#import pwn # cause blocking unexpected
 import pwnlib
 import tlsh
 import telfhash
@@ -113,7 +114,7 @@ class ElfUnpackParser(UnpackParser):
             # calculate size, also read all the data to catch EOF
             # This isn't always accurate, for example when debugging
             # data is stored in ELF files as a compressed ELF file.
-            phoff = self.data.header.program_header_offset
+            phoff = self.data.header.ofs_program_headers
             self.unpacked_size = phoff
             for header in self.data.header.program_headers:
                 # calculate the maximum offset
@@ -172,8 +173,8 @@ class ElfUnpackParser(UnpackParser):
             # Android devices.
 
             # typically the section header is at the end of the ELF file
-            shoff = self.data.header.section_header_offset
-            self.unpacked_size = max(self.unpacked_size, shoff + self.data.header.qty_section_header
+            shoff = self.data.header.ofs_section_headers
+            self.unpacked_size = max(self.unpacked_size, shoff + self.data.header.num_section_headers
                                      * self.data.header.section_header_entry_size)
             check_condition(self.unpacked_size <= self.infile.size,
                             "section header cannot be outside of file")
@@ -356,12 +357,12 @@ class ElfUnpackParser(UnpackParser):
             #
             # Related: https://github.com/Gallopsled/pwntools/issues/2560
             machine = ''
-            if isinstance(self.data.header.machine, int):
+            if isinstance(self.data.header.machine, elf.Elf.Machine):
                 machine = self.data.header.machine.name
 
             self.elf = None
             if self.infile.offset == 0:
-                if machine not in ['mips']:
+                if machine and machine not in ['mips']:
                     self.elf = pwnlib.ELF(self.infile.name, checksec=False)
 
         except (Exception, ValidationFailedError, UndecidedEndiannessError, elftools.common.exceptions.ELFError) as e:
@@ -470,12 +471,12 @@ class ElfUnpackParser(UnpackParser):
             self.metadata['type'] = 'processor specific'
 
         # store the machine type, both numerical and pretty printed
-        if isinstance(self.data.header.machine, int):
-            self.metadata['machine_name'] = "unknown architecture"
-            self.metadata['machine'] = self.data.header.machine
-        else:
+        if isinstance(self.data.header.machine, elf.Elf.Machine):
             self.metadata['machine_name'] = self.data.header.machine.name
             self.metadata['machine'] = self.data.header.machine.value
+        else:
+            self.metadata['machine_name'] = "unknown architecture"
+            self.metadata['machine'] = self.data.header.machine
 
         # store the ABI, both numerical and pretty printed
         self.metadata['abi_name'] = self.data.abi.name
@@ -574,12 +575,14 @@ class ElfUnpackParser(UnpackParser):
             sections[header.name]['nr'] = section_ctr
             sections[header.name]['address'] = header.addr
 
-            if isinstance(header.type, int):
-                sections[header.name]['type'] = header.type
-            else:
+            if isinstance(header.type, elf.Elf.ShType):
                 sections[header.name]['type'] = header.type.name
+                sections[header.name]['defined_type'] = True
+            else:
+                sections[header.name]['type'] = header.type
+                sections[header.name]['defined_type'] = False
 
-            if header.type != elf.Elf.ShType.nobits:
+            if not(isinstance(header.type, elf.Elf.ShType) and header.type == elf.Elf.ShType.nobits):
                 sections[header.name]['size'] = header.len_body
                 sections[header.name]['offset'] = header.ofs_body
                 if header.body != b'':
@@ -738,7 +741,7 @@ class ElfUnpackParser(UnpackParser):
                                         pass
 
                                     symbol['unpacked_value'] = symbol_string
-                                except (pwnlib.exception.PwnlibException, UnicodeDecodeError, KeyError):
+                                except (pwnlib.exception.PwnlibException, UnicodeDecodeError, KeyError, AttributeError):
                                     pass
 
             elif header.type == elf.Elf.ShType.progbits:

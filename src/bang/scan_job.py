@@ -27,7 +27,7 @@ import traceback
 import time
 from dataclasses import dataclass
 from .meta_directory import *
-from .UnpackParser import SynthesizingParser, ExtractedParser, ExtractingParser, PaddingParser, HashParser, compute_hashes
+from .UnpackParser import SynthesizingParser, ExtractedParser, ExtractingParser, HintParser, PaddingParser, StringExtractingParser, TlshParser, compute_hashes
 from .UnpackParserException import UnpackParserException
 from .log import log
 
@@ -104,20 +104,76 @@ def check_for_padding(scan_environment, checking_meta_directory):
 # Computes and write a TLSH hash to the meta_directory
 #
 def compute_tlsh_hash(scan_environment, checking_meta_directory):
+    '''Compute and write a TLSH hash to the meta_directory'''
     try:
         if scan_environment.tlsh_minimum <= checking_meta_directory.size <= scan_environment.tlsh_maximum:
             labels = checking_meta_directory.info.get('labels', [])
             if scan_environment.tlsh_ignore.intersection(labels) == set():
-                unpack_parser = HashParser(checking_meta_directory, 0, scan_environment.configuration)
-                log.debug(f'check_for_padding[{checking_meta_directory.md_path}]: trying parse for {checking_meta_directory.file_path} with {unpack_parser.__class__} [{time.time_ns()}]')
+                unpack_parser = TlshParser(checking_meta_directory, 0, scan_environment.configuration)
+                log.debug(f'compute_tlsh_hash[{checking_meta_directory.md_path}]: trying parse for {checking_meta_directory.file_path} with {unpack_parser.__class__} [{time.time_ns()}]')
 
                 checking_meta_directory.unpack_parser = unpack_parser
                 unpack_parser.parse_from_offset()
-                log.debug(f'check_for_padding[{checking_meta_directory.md_path}]: successful parse for {checking_meta_directory.file_path} with {unpack_parser.__class__} [{time.time_ns()}]')
-                log.debug(f'check_for_padding[{checking_meta_directory.md_path}]: parsed_size = {unpack_parser.parsed_size}/{checking_meta_directory.size}')
+                log.debug(f'compute_tlsh_hash[{checking_meta_directory.md_path}]: successful parse for {checking_meta_directory.file_path} with {unpack_parser.__class__} [{time.time_ns()}]')
+                log.debug(f'compute_tlsh_hash[{checking_meta_directory.md_path}]: parsed_size = {unpack_parser.parsed_size}/{checking_meta_directory.size}')
                 yield checking_meta_directory
 
-    except UnpackParserException as e:
+    except UnpackParserException:
+        # there will be a "parser resulted in zero length file"
+        # warning, but ignore that.
+        pass
+
+#####
+# Extracts strings from binaries and writes to the meta_directory
+#
+def extract_strings(scan_environment, checking_meta_directory):
+    '''Extracts strings from binaries and writes to the meta_directory'''
+    try:
+        labels = checking_meta_directory.info.get('labels', [])
+        if not labels or 'synthesized' in labels:
+            has_subfiles = False
+            if checking_meta_directory.info.get('extracted_files', {}):
+                has_subfiles = True
+            elif checking_meta_directory.info.get('unpacked_absolute_files', {}):
+                has_subfiles = True
+            elif checking_meta_directory.info.get('unpacked_relative_files', {}):
+                has_subfiles = True
+            elif checking_meta_directory.info.get('unpacked_symlinks', {}):
+                has_subfiles = True
+            elif checking_meta_directory.info.get('unpacked_hardlinks', {}):
+                has_subfiles = True
+            if not has_subfiles:
+                unpack_parser = StringExtractingParser(checking_meta_directory, 0, scan_environment.configuration)
+                log.debug(f'extract_strings[{checking_meta_directory.md_path}]: trying parse for {checking_meta_directory.file_path} with {unpack_parser.__class__} [{time.time_ns()}]')
+
+                checking_meta_directory.unpack_parser = unpack_parser
+                unpack_parser.parse_from_offset()
+                log.debug(f'extract_strings[{checking_meta_directory.md_path}]: successful parse for {checking_meta_directory.file_path} with {unpack_parser.__class__} [{time.time_ns()}]')
+                log.debug(f'extract_strings[{checking_meta_directory.md_path}]: parsed_size = {unpack_parser.parsed_size}/{checking_meta_directory.size}')
+                yield checking_meta_directory
+
+    except UnpackParserException:
+        # there will be a "parser resulted in zero length file"
+        # warning, but ignore that.
+        pass
+
+#####
+# Finds hints about files and writes to the meta_directory
+#
+def find_hints(scan_environment, checking_meta_directory):
+    '''Finds hints about files and writes to the meta_directory'''
+    try:
+        labels = checking_meta_directory.info.get('labels', [])
+        if not labels:
+            unpack_parser = HintParser(checking_meta_directory, 0, scan_environment.configuration)
+            log.debug(f'find_hints[{checking_meta_directory.md_path}]: trying parse for {checking_meta_directory.file_path} with {unpack_parser.__class__} [{time.time_ns()}]')
+
+            checking_meta_directory.unpack_parser = unpack_parser
+            unpack_parser.parse_from_offset()
+            log.debug(f'find_hints[{checking_meta_directory.md_path}]: successful parse for {checking_meta_directory.file_path} with {unpack_parser.__class__} [{time.time_ns()}]')
+            log.debug(f'find_hints[{checking_meta_directory.md_path}]: parsed_size = {unpack_parser.parsed_size}/{checking_meta_directory.size}')
+            yield checking_meta_directory
+    except UnpackParserException:
         # there will be a "parser resulted in zero length file"
         # warning, but ignore that.
         pass
@@ -338,6 +394,9 @@ def scan_signatures(scan_environment, meta_directory):
         for unpack_parser_cls in unpack_parser_classes:
             # try if the unpackparser works
             try:
+                if offset < file_scan_state.scanned_until: # we have passed this point in the file, ignore the result
+                    log.debug(f'scan_signatures[{meta_directory.md_path}]: skipping [{offset}:{file_scan_state.scanned_until}]')
+                    continue
                 unpack_parser = unpack_parser_cls(meta_directory, offset, scan_environment.configuration)
                 log.debug(f'scan_signatures[{meta_directory.md_path}]: trying parse at {meta_directory.file_path}:{offset} with {unpack_parser_cls} [{time.time_ns()}]')
                 unpack_parser.parse_from_offset()
@@ -585,11 +644,14 @@ def pipe_with(context, pipe):
 #
 
 def make_scan_pipeline():
+    '''Helper function to create scan pipelines'''
     stop_if_scanned = pipe_cond(cond_if_scanned, pipe_fail, pipe_pass)
 
     pipe_padding = pipe_seq(pipe_exec(check_for_padding), stop_if_scanned)
 
     pipe_hashes = pipe_exec(compute_tlsh_hash)
+    pipe_strings = pipe_exec(extract_strings)
+    pipe_hints = pipe_exec(find_hints)
 
     pipe_checks_if_not_synthesized = pipe_cond(
             cond_not_synthesized,
@@ -612,7 +674,9 @@ def make_scan_pipeline():
     pipe_root = pipe_or(pipe_cond(
         cond_scannable,
         pipe_with(ctx_open_md_for_writing, pipe_scan),
-        pipe_fail), pipe_with(ctx_open_md_for_writing, pipe_hashes)
+        pipe_fail), pipe_with(ctx_open_md_for_writing, pipe_hashes),
+        pipe_with(ctx_open_md_for_writing, pipe_hints),
+        pipe_with(ctx_open_md_for_writing, pipe_strings)
     )
     return pipe_root
 

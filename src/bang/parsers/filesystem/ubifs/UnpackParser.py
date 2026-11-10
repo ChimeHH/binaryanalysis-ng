@@ -26,7 +26,7 @@ import zlib
 import lzo
 import zstandard
 
-from bang.UnpackParser import UnpackParser
+from bang.UnpackParser import UnpackParser, check_condition
 from bang.UnpackParserException import UnpackParserException
 from kaitaistruct import ValidationFailedError
 from . import ubifs
@@ -49,6 +49,10 @@ class UbifsUnpackParser(UnpackParser):
         except (Exception, ValidationFailedError) as e:
             raise UnpackParserException(e.args) from e
 
+        check_condition(self.data.len_image <= self.infile.size,
+                        "not enough data")
+
+
     def unpack(self, meta_directory):
         '''Unpack ubifs data by traversing the tree, starting with the root node'''
         node_blocks = collections.deque()
@@ -66,7 +70,7 @@ class UbifsUnpackParser(UnpackParser):
                 process_node = node_blocks.popleft()
                 if isinstance(process_node.node_header, ubifs.Ubifs.IndexHeader):
                     for branch in process_node.node_header.branches:
-                        node_blocks.append(branch.branch_target)
+                        node_blocks.append(branch.target)
                 elif isinstance(process_node.node_header, ubifs.Ubifs.DirectoryHeader):
                     # TODO: use the key for some verification of the inode
                     parent_inode_nr = process_node.node_header.key.inode_number
@@ -76,13 +80,19 @@ class UbifsUnpackParser(UnpackParser):
 
                     # target inode number
                     target_inode = process_node.node_header.inode_number
-                    target_name = process_node.node_header.name
+
+                    # target name, this is a byte sequence, so try to decode
+                    # it first. This should probably be checked in the parser
+                    # TODO.
+                    target_name = process_node.node_header.name.decode()
 
                     # store name, parent and type
                     inode_to_name[target_inode] = pathlib.Path(target_name)
                     inode_to_parent[target_inode] = parent_inode_nr
                     inode_to_type[target_inode] = process_node.node_header.inode_type
             except IndexError:
+                break
+            except UnicodeDecodeError:
                 break
 
         # reconstruct the directory paths per inode
@@ -119,7 +129,7 @@ class UbifsUnpackParser(UnpackParser):
                 process_node = node_blocks.popleft()
                 if isinstance(process_node.node_header, ubifs.Ubifs.IndexHeader):
                     for branch in process_node.node_header.branches:
-                        node_blocks.append(branch.branch_target)
+                        node_blocks.append(branch.target)
                 elif isinstance(process_node.node_header, ubifs.Ubifs.InodeHeader):
                     inode = process_node.node_header.key.inode_number
                     if inode in inode_to_type:
@@ -176,6 +186,9 @@ class UbifsUnpackParser(UnpackParser):
 
         for unpacked_md in unpacked_mds.values():
             yield unpacked_md
+
+    def calculate_unpacked_size(self):
+        self.unpacked_size = self.data.len_image
 
     labels = ['ubifs', 'filesystem']
     metadata = {}

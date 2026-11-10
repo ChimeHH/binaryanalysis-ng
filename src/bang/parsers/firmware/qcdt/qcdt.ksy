@@ -16,10 +16,10 @@ doc-ref:
   - https://raw.githubusercontent.com/CyanogenMod/android_device_qcom_common/cm-14.1/dtbtool/dtbtool.txt (v3)
   - https://source.codeaurora.org/quic/kernel/skales/plain/dtbTool?id=1.6.0
   - web.archive.org/web/20160402060151if_/https://developer.qualcomm.com/qfile/28821/lm80-p0436-1_little_kernel_boot_loader_overview.pdf (section 2.4.1)
-  - https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/soc/qcom/socinfo.c?h=v5.19
+  - https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/soc/qcom/socinfo.c?id=b0bc160c311a0e7163c00a7e66116d28ce9771df
   - https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/drivers/soc/qcom/socinfo.c
   - https://github.com/brinlyau/P810D02_ZTE_T792_KitKat_3.4/blob/master/P810D02_ZTE_T792_KitKat_340_kernel/arch/arm/mach-msm/socinfo.c
-  - https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/dt-bindings/arm/qcom,ids.h?id=de7aeee0d942d2e1d85b3db3652e037af38e24d7
+  - https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/dt-bindings/arm/qcom,ids.h?id=f5bbbfec59b4e2fb7520a91de3df8a6174325d6a
 seq:
   - id: magic
     contents: "QCDT"
@@ -364,10 +364,12 @@ enums:
     487: sc7280
     495: sc7180p
     497: qcm6490
+    498: qcs6490
     499: sm7325p
     503: ipq5000
     504: ipq0509
     505: ipq0518
+    506: sm7450
     507: sm6375
     510: ipq9514
     511: ipq9550
@@ -383,10 +385,12 @@ enums:
     530: sm8475
     531: sm8475p
     532: sa8255p
+    533: sa8650p
     534: sa8775p
     539: qru1000
     540: sm8475_2
     545: qdu1000
+    547: sm7450p
     555: x1e80100
     557: sm8650
     568: sm4450
@@ -402,15 +406,40 @@ enums:
     595: ipq5302
     603: qcs8550
     604: qcm8550
+    618: sm8750
     624: ipq5300
+    636: sm7635
+    640: sm6650
+    641: sm6650p
     650: ipq5321
     651: ipq5424
+    657: qcm6690
+    658: qcs6690
+    659: sm7750
+    660: sm8850
     667: qcs9100
     671: ipq5404
     674: qcs8300
     675: qcs8275
     676: qcs9075
     680: qcs615
+    690: sa8797p
+    731: cq7790m
+    732: cq7790s
+    756: cq2390m
+    758: cq2390s
+    759: iq2390s
+    765: ipq5200
+    766: ipq5210
+    767: qcf2200
+    768: qcf3200
+    769: qcf3210
+    770: ipq9620
+    771: ipq9650
+    778: ipq9610
+    779: ipq9630
+    780: ipq9640
+    781: ipq9670
   platform_ids:
     1: cdp
     2: ffa
@@ -485,6 +514,7 @@ enums:
     50: pm8350b
     51: pmr735a
     52: pmr735b
+    54: pm6350
     55: pm2250
     58: pm8450
     65: pm8010
@@ -494,3 +524,22 @@ enums:
     72: pmr735d
     73: pm8550
     74: pmk8550
+    76: pm7550ba
+    78: pmm8650au
+    79: pmm8650au_psail
+    80: pm7550
+    82: pmc8380
+    83: smb2360
+    86: pm8750b
+    87: pmd8028
+    88: pmc1020h
+    89: pmiv0104
+    90: pmiv0102
+    91: pmiv0108
+    92: pmk8850
+    93: pmh0101
+    94: pmau0102
+    95: smb2370
+    96: pmh0104
+    97: pmh0110
+    98: pmcx0102
