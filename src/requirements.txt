@@ -4,7 +4,7 @@ deepdiff
 defusedxml
 dockerfile-parse
 icalendar
-kaitaistruct==0.10
+kaitaistruct==0.11
 leb128
 lz4
 mutf8
