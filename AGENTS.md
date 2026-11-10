@@ -12,6 +12,12 @@
 - 用户明确本项目只需支持扫描单个文件。保持 `scan` 的文件输入约束，不为目录扫描添加或扩展功能，除非用户另行要求。
 - 参考版和当前版都能找到 `scan_directory` 命令；它的存在不代表本项目需要支持目录扫描，也不应把它当成本次需求。
 
+## Parser 生成
+
+- Kaitai parser 的正式生成入口是 `src/Makefile`：从仓库根目录执行 `make -C src`，把 `src/bang/parsers/**/*.ksy` 编成相邻的 `.py`，并修正生成代码的相对导入。
+- 默认分支使用 PATH 中的 `kaitai-struct-compiler`。设置 `CONTAINER` 才会走 Makefile 的 Kaitai 容器分支；没有明确要求时不要走该分支，也不要创建临时容器。
+- 当前 parser grammars 要求 Kaitai compiler 至少 0.11；生成代码也要求 Kaitai Python runtime 至少 0.11。保持 `setup.cfg` 和 `src/requirements.txt` 的 runtime 版本一致。
+
 ## 测试机与同步
 
 - 目标测试机：`192.168.2.201`，SSH 用户：`aglaea`；用户说明 SSH 无需密码。

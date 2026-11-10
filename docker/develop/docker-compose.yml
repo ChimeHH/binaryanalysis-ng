@@ -1,83 +1,13 @@
 name: vseeker
 
 services:                                                                                                                                     
-  mongo:
-    build:
-      context: ./settings
-      dockerfile: mongo.conf
-    image: "chime/mongo"
-    container_name: mongo
-    restart: unless-stopped
-    command: mongod --keyFile /data/configdb/keyfile
-    logging:  
-      driver: "json-file"
-      options:  
-        max-size: "2m"
-        max-file: "3"
-      
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_db:/data/db
-      - mongo_configdb:/data/configdb
-    networks:
-      - network
-
-  redis:
-    build:
-      context: ./settings
-      dockerfile: redis.conf
-    image: "chime/redis"
-    container_name: redis
-    restart: unless-stopped
-    tty: true
-    privileged: true
-    logging:  
-      driver: "json-file"
-      options:  
-        max-size: "2m"
-        max-file: "3"
-    environment:
-      REDIS_ARGS: '--requirepass your_strong_password --save "" --appendonly no'
-    volumes:
-      - redis_data:/data
-      - redis_logs:/logs    
-    ports:
-      - "6379:6379"
-      - "8001:8001"
-    networks:
-      - network
-  
-  rabbitmq:
-    build:
-      context: ./settings
-      dockerfile: rabbitmq.conf
-    image: "chime/rabbitmq"
-    container_name: rabbitmq
-    restart: unless-stopped
-    logging:  
-      driver: "json-file"
-      options:  
-        max-size: "2m"
-        max-file: "3"
-    environment:
-      RABBITMQ_DEFAULT_USER: chime
-      RABBITMQ_DEFAULT_PASS: your_strong_password      
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - data:/data
-    networks:
-      - network
-
-  bast:
+  bang:
     build:
       context: ../../
       dockerfile: docker/develop/settings/bast.conf
       network: host
-    image: "chime/bast"
-    container_name: bast
+    image: "bang"
+    container_name: bang
     restart: unless-stopped
     tty: true
     privileged: true    
@@ -88,11 +18,10 @@ services:
         max-file: "3"
     environment:
       PYTHONPATH: /usr/local/lib/python3.12/packages:/usr/local/lib/python3.12/other-packages 
-      ENGINE_ID: 'bast.0'  
+      ENGINE_ID: 'bang.0'  
       LOG_LEVEL: 10
       BANG_VERBOSE: 0
       BANG_CONCURRENT: 1
-    # entrypoint: python3 -m services.bast.main
     entrypoint: /bin/bash 
     volumes:
       - data:/data
@@ -107,11 +36,7 @@ networks:
   network:
     driver: bridge
 
-volumes:  
-  mongo_db:
-  mongo_configdb:
-  redis_data:
-  redis_logs:
+volumes:
   data:  
     driver: local  
     driver_opts:  
@@ -122,21 +47,12 @@ volumes:
     driver: local  
     driver_opts:  
       type: none  
-      #device: /data/vseeker/appdata
       device: /share/digitaltwins-ng/appdata
-      o: bind  
-  packages:  
-    driver: local  
-    driver_opts:  
-      type: none  
-      #device: /data/vseeker/packages
-      device: /share/digitaltwins-ng/packages
-      o: bind  
+      o: bind
   bang:  
     driver: local  
     driver_opts:  
       type: none  
-      #device: /data/vseeker/bang/src/bang
       device: /share/bang/src/bang
       o: bind
   
